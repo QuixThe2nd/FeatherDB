@@ -120,6 +120,6 @@ export class Table<T extends Modal> {
       if (conditions) query += ` WHERE ${conditions}`;
     }
     
-    return this.db.query(query).as(Row<T>).all(...params);
+    this.db.prepare(query).run(params);
   }
 }
