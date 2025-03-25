@@ -95,9 +95,7 @@ export class Table<T extends Modal> {
         })
         .join(' AND ');
         
-      if (conditions) {
-        query += ` WHERE ${conditions}`;
-      }
+      if (conditions) query += ` WHERE ${conditions}`;
     }
     
     if (limit !== undefined && limit > 0) query += ` LIMIT ${limit}`;
