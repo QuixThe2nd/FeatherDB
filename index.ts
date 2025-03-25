@@ -19,6 +19,12 @@ export type OrderBy<T extends Modal> = {
   direction?: 'ASC' | 'DESC';
 }
 
+export type GetOptions<T extends Modal> = {
+  where?: Partial<RowType<T>>;
+  limit?: number;
+  orderBy?: OrderBy<T> | OrderBy<T>[];
+}
+
 export class Row<T extends Modal> {
   constructor(data: RowType<T>) {
     Object.assign(this, data);
@@ -86,13 +92,13 @@ export class Table<T extends Modal> {
     return this.db.run(sql, values)
   }
 
-  get = (partialRow?: Partial<RowType<T>>, limit?: number, orderBy?: OrderBy<T> | OrderBy<T>[]): Row<T>[] => {
+  get = (options?: GetOptions<T>): Row<T>[] => {
     let query = `SELECT * FROM ${this.name}`;
-    
     const params: (string | number)[] = [];
 
-    if (partialRow && Object.keys(partialRow).length > 0) {
-      const conditions = Object.entries(partialRow)
+    // Process WHERE clause
+    if (options?.where && Object.keys(options.where).length > 0) {
+      const conditions = Object.entries(options.where)
         .filter(([key]) => key in this.modal)
         .map(([key, value]) => {
           params.push(value);
@@ -103,8 +109,9 @@ export class Table<T extends Modal> {
       if (conditions) query += ` WHERE ${conditions}`;
     }
     
-    if (orderBy) {
-      const orderByClauses = Array.isArray(orderBy) ? orderBy : [orderBy];
+    // Process ORDER BY clause
+    if (options?.orderBy) {
+      const orderByClauses = Array.isArray(options.orderBy) ? options.orderBy : [options.orderBy];
       
       if (orderByClauses.length > 0) {
         const orderByStatements = orderByClauses
@@ -116,7 +123,10 @@ export class Table<T extends Modal> {
       }
     }
     
-    if (limit !== undefined && limit > 0) query += ` LIMIT ${limit}`;
+    // Process LIMIT clause
+    if (options?.limit !== undefined && options.limit > 0) {
+      query += ` LIMIT ${options.limit}`;
+    }
     
     return this.db.query(query).as(Row<T>).all(...params);
   }
