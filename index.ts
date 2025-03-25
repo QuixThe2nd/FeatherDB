@@ -122,4 +122,66 @@ export class Table<T extends Modal> {
     
     this.db.prepare(query).run(params);
   }
+  count = (partialRow?: Partial<RowType<T>>): number => {
+    let query = `SELECT COUNT(*) as count FROM ${this.name}`;
+    
+    const params: (string | number)[] = [];
+    if (partialRow && Object.keys(partialRow).length > 0) {
+      const conditions = Object.entries(partialRow)
+        .filter(([key]) => key in this.modal)
+        .map(([key, value]) => {
+          params.push(value);
+          return `${key} = ?`;
+        })
+        .join(' AND ');
+        
+      if (conditions) query += ` WHERE ${conditions}`;
+    }
+    
+    const result = this.db.query(query).get(...params);
+    return result ? (result.count as number) : 0;
+  }
+  update = (partialRow: Partial<RowType<T>>, whereClause: Partial<RowType<T>>) => {
+    if (!partialRow || Object.keys(partialRow).length === 0) {
+      throw new Error('Update requires at least one field to update');
+    }
+    
+    if (!whereClause || Object.keys(whereClause).length === 0) {
+      throw new Error('Update requires a where clause to identify rows');
+    }
+    
+    const updateFields = Object.entries(partialRow)
+      .filter(([key]) => key in this.modal)
+      .map(([key]) => `${key} = ?`)
+      .join(', ');
+      
+    const whereFields = Object.entries(whereClause)
+      .filter(([key]) => key in this.modal)
+      .map(([key]) => `${key} = ?`)
+      .join(' AND ');
+    
+    if (!updateFields || !whereFields) {
+      throw new Error('Invalid update or where clause fields');
+    }
+    
+    const query = `UPDATE ${this.name} SET ${updateFields} WHERE ${whereFields}`;
+    
+    const updateValues = Object.entries(partialRow)
+      .filter(([key]) => key in this.modal)
+      .map(([_, value]) => {
+        if (typeof value === 'string' && value.startsWith('0x')) return value.toString();
+        return value;
+      });
+      
+    const whereValues = Object.entries(whereClause)
+      .filter(([key]) => key in this.modal)
+      .map(([_, value]) => {
+        if (typeof value === 'string' && value.startsWith('0x')) return value.toString();
+        return value;
+      });
+    
+    const params = [...updateValues, ...whereValues];
+    
+    return this.db.prepare(query).run(params);
+  }
 }
