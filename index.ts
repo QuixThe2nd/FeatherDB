@@ -102,4 +102,24 @@ export class Table<T extends Modal> {
     
     return this.db.query(query).as(Row<T>).all(...params);
   }
+
+  delete = (partialRow?: Partial<RowType<T>>): Row<T>[] => {
+    let query = `DELETE FROM ${this.name}`;
+    
+    const params: (string | number)[] = [];
+
+    if (partialRow && Object.keys(partialRow).length > 0) {
+      const conditions = Object.entries(partialRow)
+        .filter(([key]) => key in this.modal)
+        .map(([key, value]) => {
+          params.push(value);
+          return `${key} = ?`;
+        })
+        .join(' AND ');
+        
+      if (conditions) query += ` WHERE ${conditions}`;
+    }
+    
+    return this.db.query(query).as(Row<T>).all(...params);
+  }
 }
