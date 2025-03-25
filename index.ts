@@ -151,12 +151,15 @@ export class Table<T extends Modal> {
     const stmt = this.db.prepare(query)
     stmt.run(...params);
   }
-  count = (partialRow?: Partial<RowType<T>>): number => {
+
+  count = (options?: GetOptions<T>): number => {
     let query = `SELECT COUNT(*) as count FROM ${this.name}`;
     
     const params: (string | number)[] = [];
-    if (partialRow && Object.keys(partialRow).length > 0) {
-      const conditions = Object.entries(partialRow)
+
+    // Process WHERE clause
+    if (options?.where && Object.keys(options.where).length > 0) {
+      const conditions = Object.entries(options.where)
         .filter(([key]) => key in this.modal)
         .map(([key, value]) => {
           params.push(value);
@@ -170,6 +173,7 @@ export class Table<T extends Modal> {
     const result = this.db.query(query).get(...params) as object;
     return result && 'count' in result ? (result.count as number) : 0;
   }
+
   update = (partialRow: Partial<RowType<T>>, whereClause: Partial<RowType<T>>) => {
     if (!partialRow || Object.keys(partialRow).length === 0) {
       throw new Error('Update requires at least one field to update');
