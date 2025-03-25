@@ -14,6 +14,11 @@ export type RowType<T extends Modal> = {
   [K in keyof T]: ModalTypeMap[T[K]]
 }
 
+export type OrderBy<T extends Modal> = {
+  column: keyof T;
+  direction?: 'ASC' | 'DESC';
+}
+
 export class Row<T extends Modal> {
   constructor(data: RowType<T>) {
     Object.assign(this, data);
@@ -81,7 +86,7 @@ export class Table<T extends Modal> {
     return this.db.run(sql, values)
   }
 
-  get = (partialRow?: Partial<RowType<T>>, limit?: number): Row<T>[] => {
+  get = (partialRow?: Partial<RowType<T>>, limit?: number, orderBy?: OrderBy<T> | OrderBy<T>[]): Row<T>[] => {
     let query = `SELECT * FROM ${this.name}`;
     
     const params: (string | number)[] = [];
@@ -96,6 +101,19 @@ export class Table<T extends Modal> {
         .join(' AND ');
         
       if (conditions) query += ` WHERE ${conditions}`;
+    }
+    
+    if (orderBy) {
+      const orderByClauses = Array.isArray(orderBy) ? orderBy : [orderBy];
+      
+      if (orderByClauses.length > 0) {
+        const orderByStatements = orderByClauses
+          .filter(order => order.column in this.modal)
+          .map(order => `${String(order.column)} ${order.direction || 'ASC'}`)
+          .join(', ');
+          
+        if (orderByStatements) query += ` ORDER BY ${orderByStatements}`;
+      }
     }
     
     if (limit !== undefined && limit > 0) query += ` LIMIT ${limit}`;
