@@ -14,7 +14,7 @@ const db = new Database();
 
 3. Define Table
 ```TS
-import { type Modal } from "FeatherDB";
+import { Table, type Modal } from "FeatherDB";
 
 interface UserModal extends Modal {
   id: 'INTEGER',
@@ -35,6 +35,32 @@ users.add({
 
 5. Getting rows
 ```TS
+const result1 = users.select({ name: 'John Smith' })
+console.log('ID: ', result1[0].get(id))
+
+const result2 = users.select({ id: 12 })
+console.log('Name: ', result2[0].name)
+```
+
+## Complete Example
+```TS
+import { Database } from 'bun:sqlite'
+import { Table, type Modal } from "FeatherDB";
+
+interface UserModal extends Modal {
+  id: 'INTEGER',
+  name: 'STRING',
+}
+
+const db = new Database();
+const users = new Table<UserModal>('user', {id: 'INTEGER', name: 'STRING'}, db)
+users.create()
+
+users.add({
+  id: 12,
+  name: 'John Smith'
+})
+
 const result1 = users.select({ name: 'John Smith' })
 console.log('ID: ', result1[0].get(id))
 
