@@ -42,6 +42,11 @@ const result2 = users.select({ id: 12 })
 console.log('Name: ', result2[0].name)
 ```
 
+5. Deleting rows
+```TS
+users.delete({ name: 'John Smith' })
+```
+
 ## Complete Example
 ```TS
 import { Database } from 'bun:sqlite'
@@ -66,4 +71,6 @@ console.log('ID: ', result1[0].get(id))
 
 const result2 = users.select({ id: 12 })
 console.log('Name: ', result2[0].name)
+
+users.delete({ name: 'John Smith' })
 ```
