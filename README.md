@@ -42,7 +42,7 @@ const result2 = users.select({ id: 12 })
 console.log('Name: ', result2[0].name)
 ```
 
-5. Deleting rows
+6. Deleting rows
 ```TS
 users.delete({ name: 'John Smith' })
 ```
