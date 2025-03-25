@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import { Database, type SQLQueryBindings } from "bun:sqlite";
 
 export type Modal = {
   [key: string]: 'HEX' | 'INTEGER' | 'STRING'
@@ -103,10 +103,10 @@ export class Table<T extends Modal> {
     return this.db.query(query).as(Row<T>).all(...params);
   }
 
-  delete = (partialRow?: Partial<RowType<T>>): Row<T>[] => {
+  delete = (partialRow?: Partial<RowType<T>>): void => {
     let query = `DELETE FROM ${this.name}`;
     
-    const params: (string | number)[] = [];
+    const params: SQLQueryBindings[] = [];
 
     if (partialRow && Object.keys(partialRow).length > 0) {
       const conditions = Object.entries(partialRow)
@@ -120,7 +120,8 @@ export class Table<T extends Modal> {
       if (conditions) query += ` WHERE ${conditions}`;
     }
     
-    this.db.prepare(query).run(params);
+    const stmt = this.db.prepare(query)
+    stmt.run(...params);
   }
   count = (partialRow?: Partial<RowType<T>>): number => {
     let query = `SELECT COUNT(*) as count FROM ${this.name}`;
@@ -138,8 +139,8 @@ export class Table<T extends Modal> {
       if (conditions) query += ` WHERE ${conditions}`;
     }
     
-    const result = this.db.query(query).get(...params);
-    return result ? (result.count as number) : 0;
+    const result = this.db.query(query).get(...params) as object;
+    return result && 'count' in result ? (result.count as number) : 0;
   }
   update = (partialRow: Partial<RowType<T>>, whereClause: Partial<RowType<T>>) => {
     if (!partialRow || Object.keys(partialRow).length === 0) {
@@ -182,6 +183,7 @@ export class Table<T extends Modal> {
     
     const params = [...updateValues, ...whereValues];
     
-    return this.db.prepare(query).run(params);
+    const stmt = this.db.prepare(query)
+    return stmt.run(...params);
   }
 }
