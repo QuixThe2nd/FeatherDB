@@ -81,7 +81,7 @@ export class Table<T extends Modal> {
     return this.db.run(sql, values)
   }
 
-  select = (partialRow?: Partial<RowType<T>>, limit?: number): Row<T>[] => {
+  get = (partialRow?: Partial<RowType<T>>, limit?: number): Row<T>[] => {
     let query = `SELECT * FROM ${this.name}`;
     
     const params: (string | number)[] = [];
