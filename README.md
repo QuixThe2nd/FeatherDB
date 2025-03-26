@@ -23,7 +23,7 @@ import { type Modal } from "FeatherDB";
 interface UserModal extends Modal {
   id: number,
   name: `${string} ${string}`,
-  favourite_colour: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
+  favourite_colour: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
 }
 ```
 
