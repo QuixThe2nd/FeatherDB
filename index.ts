@@ -1,7 +1,7 @@
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 
 export type Modal = {
-  [key: string]: 'HEX' | 'INTEGER' | 'STRING' | 'BOOLEAN'
+  [key: string]: 'HEX' | 'INTEGER' | 'STRING' | 'BOOLEAN' | 'URL'
 }
 
 export type ModalTypeMap = {
@@ -9,6 +9,7 @@ export type ModalTypeMap = {
   'INTEGER': number;
   'STRING': string;
   'BOOLEAN': number;
+  'URL': `http://${string}` | `https://${string}`
 }
 
 export type RowType<T extends Modal> = {
