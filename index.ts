@@ -1,14 +1,14 @@
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 
 export type Modal = {
-  [key: string]: 'HEX' | 'INTEGER' | 'STRING'
+  [key: string]: 'HEX' | 'INTEGER' | 'STRING' | 'BOOLEAN'
 }
 
 export type ModalTypeMap = {
   'HEX': `0x${string}`;
   'INTEGER': number;
   'STRING': string;
-  'BOOLEAN': number
+  'BOOLEAN': number;
 }
 
 export type RowType<T extends Modal> = {
