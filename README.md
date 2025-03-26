@@ -35,16 +35,13 @@ users.add({
 
 5. Getting rows
 ```TS
-const result1 = users.select({ name: 'John Smith' })
+const result1 = users.select({ where: { name: 'John Smith' }, orderBy: { column: 'id', direction: 'DESC' }, limit: 1 })
 console.log('ID: ', result1[0].get(id))
-
-const result2 = users.select({ id: 12 })
-console.log('Name: ', result2[0].name)
 ```
 
 6. Deleting rows
 ```TS
-users.delete({ name: 'John Smith' })
+users.delete({ where: { name: 'John Smith' } })
 ```
 
 ## Complete Example
