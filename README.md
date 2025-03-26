@@ -1,11 +1,12 @@
 # FeatherDB
 FeatherDB is a lightweight TypeScript ORM built for Bun. It is made to allow for custom advanced types in an SQLite database.
 
-1. Installation
+## 1. Installation
 
 Run `bun add github:QuixThe2nd/FeatherDB`
 
-2. SQLite
+## 2. SQLite
+
 Import and start a SQLite database:
 ```TS
 import { Database } from 'bun:sqlite'
@@ -13,7 +14,8 @@ import { Database } from 'bun:sqlite'
 const db = new Database();
 ```
 
-3. Define Table Schema
+## 3. Define Table Schema
+
 Define an interface for your table with types as strict as you like:
 ```TS
 import { type Modal } from "FeatherDB";
@@ -36,7 +38,8 @@ const userDefinition: Definition<UserModal> = {
 }
 ```
 
-4. Create Row Class
+## 4. Create Row Class
+
 Create a class that will be used to represent fetched rows:
 ```TS
 class User implements UserModal {
@@ -53,7 +56,8 @@ class User implements UserModal {
 
 You can optionally add custom properties and method to this cals.
 
-5. Create Table
+## 5. Create Table
+
 Initialise a FeatherDB Table class and create the table:
 ```TS
 import { Table } from "FeatherDB";
@@ -62,7 +66,8 @@ const users = new Table<UserModal>(db, 'user', userDefinition, User)
 users.create()
 ```
 
-6. Adding rows
+## 6. Adding rows
+
 ```TS
 users.add({
   id: 12,
@@ -71,13 +76,15 @@ users.add({
 })
 ```
 
-7. Getting rows
+## 7. Getting rows
+
 ```TS
 const user = users.get({ where: { name: 'John Smith' } })[0]
 console.log('ID: ', user?.get('id') ?? "User doesn't exist")
 ```
 
-8. Deleting rows
+## 8. Deleting rows
+
 ```TS
 users.delete({ name: 'John Smith' })
 ```
