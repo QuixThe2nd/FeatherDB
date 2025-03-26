@@ -54,7 +54,7 @@ class User implements UserModal {
 }
 ```
 
-You can optionally add custom properties and method to this cals.
+You can optionally add custom properties and method to this class.
 
 ## 5. Create Table
 
