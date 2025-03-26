@@ -44,7 +44,7 @@ Create a class that will be used to represent fetched rows:
 ```TS
 class User implements UserModal {
   id!: number
-  name!: string
+  name!: `${string} ${string}`
   favourite_colour!: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
   [key: string]: any
 
@@ -96,7 +96,7 @@ import { Table, type Definition, type Modal } from "FeatherDB";
 
 interface UserModal extends Modal {
   id: number,
-  name: string,
+  name: `${string} ${string}`,
   favourite_colour: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
 }
 
@@ -108,7 +108,7 @@ const userDefinition: Definition<UserModal> = {
 
 class User implements UserModal {
   id!: number
-  name!: string
+  name!: `${string} ${string}`
   favourite_colour!: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
   [key: string]: any
 
