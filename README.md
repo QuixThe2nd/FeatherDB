@@ -1,5 +1,5 @@
 # FeatherDB
-FeatherDB is a lightweight TypeScript ORM built for Bun.
+FeatherDB is a lightweight TypeScript ORM built for Bun. It is made to allow for custom advanced types in an SQLite database.
 
 1. Installation
 
@@ -17,11 +17,12 @@ const db = new Database();
 import { Table, type Modal } from "FeatherDB";
 
 interface UserModal extends Modal {
-  id: 'INTEGER',
-  name: 'STRING',
+  id: number,
+  name: string,
+  favourite_colour: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
 }
 
-const users = new Table<UserModal>('user', {id: 'INTEGER', name: 'STRING'}, db)
+const users = new Table<UserModal>('user', { id: { type: 'INTEGER' }, name: { type: 'TEXT' }, favourite_colour: { type: 'TEXT' } }, db)
 users.create()
 ```
 
@@ -29,19 +30,20 @@ users.create()
 ```TS
 users.add({
   id: 12,
-  name: 'John Smith'
+  name: 'John Smith',
+  favourite_colour: 'blue'
 })
 ```
 
 5. Getting rows
 ```TS
-const result1 = users.select({ where: { name: 'John Smith' }, orderBy: { column: 'id', direction: 'DESC' }, limit: 1 })
-console.log('ID: ', result1[0].get(id))
+const user = users.get({ where: { name: 'John Smith' } })[0]
+console.log('ID: ', user?.get('id') ?? "User doesn't exist")
 ```
 
 6. Deleting rows
 ```TS
-users.delete({ where: { name: 'John Smith' } })
+users.delete({ name: 'John Smith' })
 ```
 
 ## Complete Example
@@ -50,24 +52,23 @@ import { Database } from 'bun:sqlite'
 import { Table, type Modal } from "FeatherDB";
 
 interface UserModal extends Modal {
-  id: 'INTEGER',
-  name: 'STRING',
+  id: number,
+  name: string,
+  favourite_colour: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
 }
 
 const db = new Database();
-const users = new Table<UserModal>('user', {id: 'INTEGER', name: 'STRING'}, db)
+const users = new Table<UserModal>('user', { id: { type: 'INTEGER' }, name: { type: 'TEXT' }, favourite_colour: { type: 'TEXT' } }, db)
 users.create()
 
 users.add({
   id: 12,
-  name: 'John Smith'
+  name: 'John Smith',
+  favourite_colour: 'blue'
 })
 
-const result1 = users.select({ name: 'John Smith' })
-console.log('ID: ', result1[0].get(id))
-
-const result2 = users.select({ id: 12 })
-console.log('Name: ', result2[0].name)
+const user = users.get({ where: { name: 'John Smith' } })[0]
+console.log('ID: ', user?.get('id') ?? "User doesn't exist")
 
 users.delete({ name: 'John Smith' })
 ```
