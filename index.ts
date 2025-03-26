@@ -1,19 +1,15 @@
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 
+// Modal 
 export type Modal = {
-  [key: string]: 'HEX' | 'INTEGER' | 'STRING' | 'BOOLEAN' | 'URL'
+  [key: string]: SQLQueryBindings
 }
 
-export type ModalTypeMap = {
-  'HEX': `0x${string}`;
-  'INTEGER': number;
-  'STRING': string;
-  'BOOLEAN': number;
-  'URL': `http://${string}` | `https://${string}`
-}
-
-export type RowType<T extends Modal> = {
-  [K in keyof T]: ModalTypeMap[T[K]]
+export type Definition<T extends Modal> = {
+  [key in keyof T]: {
+    type: 'INTEGER' | 'TEXT' | 'BOOLEAN',
+    nullable?: boolean
+  }
 }
 
 export type OrderBy<T extends Modal> = {
@@ -22,73 +18,78 @@ export type OrderBy<T extends Modal> = {
 }
 
 export type GetOptions<T extends Modal> = {
-  where?: Partial<RowType<T>>;
+  where?: Partial<T>;
   limit?: number;
   orderBy?: OrderBy<T> | OrderBy<T>[];
 }
 
 export class Row<T extends Modal> {
-  constructor(data: RowType<T>) {
-    Object.assign(this, data);
+  private data: T
+
+  constructor(data: T) {
+    this.data = data
   }
 
-  get<K extends keyof T>(key: K): ModalTypeMap[T[K]] {
-    return (this as unknown as RowType<T>)[key];
+  get values() {
+    return this.data
+  }
+
+  get<K extends keyof T>(key: K): T[K] {
+    return this.data[key];
   }
 
   static fromDb<T extends Modal>(data: Record<string, unknown>, modal: T): Row<T> {
-    const convertedData: Partial<RowType<T>> = {};
+    const convertedData: Partial<T> = {};
 
     for (const [key, value] of Object.entries(data)) {
       if (key in modal) {
         const modalKey = key as keyof T;
         const modalType = modal[modalKey];
         
-        if (modalType === 'HEX' && typeof value === 'string') convertedData[modalKey as keyof RowType<T>] = (value.startsWith('0x') ? value : `0x${value}`) as RowType<T>[keyof RowType<T>];
-        else convertedData[modalKey as keyof RowType<T>] = value as RowType<T>[keyof RowType<T>];
+        if (modalType === 'HEX' && typeof value === 'string') convertedData[modalKey as keyof T] = (value.startsWith('0x') ? value : `0x${value}`) as T[keyof T];
+        else convertedData[modalKey as keyof T] = value as T[keyof T];
       }
     }
 
-    return new Row<T>(convertedData as RowType<T>);
+    return new Row<T>(convertedData as T);
   }
 
-  getRawData(): RowType<T> {
-    const rawData: Partial<RowType<T>> = {};
+  getRawData(): T {
+    const rawData: Partial<T> = {};
     
     for (const key in this) {
       if (typeof this[key] !== 'function' && Object.prototype.hasOwnProperty.call(this, key)) {
-        rawData[key as keyof RowType<T>] = (this as unknown as RowType<T>)[key as keyof RowType<T>];
+        rawData[key as keyof T] = (this as unknown as T)[key as keyof T];
       }
     }
     
-    return rawData as RowType<T>;
+    return rawData as T;
   }
 }
 
 export class Table<T extends Modal> {
   name: string
-  modal: T
+  definition: Definition<T>
   private db: Database
+  private child: new (args: T) => T
 
-  constructor(name: string, modal: T, db: Database) {
+  constructor(db: Database, name: string, definition: Definition<T>, child: new (args: T) => T) {
     this.name = name
-    this.modal = modal
+    this.definition = definition
     this.db = db
+    this.child = child
   }
 
   create = () => {
-    const columnDefs = Object.entries(this.modal).map(([col, type]) => `${col} ${type === 'INTEGER' ? 'INTEGER' : 'TEXT'} NOT NULL`).join(', ');
+    const columnDefs = Object.entries(this.definition).map(([col, opts]) => `${col} ${opts.type} ${opts.nullable ? '' : 'NOT NULL'}`).join(', ');
+    console.log(`CREATE TABLE IF NOT EXISTS ${this.name} (${columnDefs})`)
     this.db.run(`CREATE TABLE IF NOT EXISTS ${this.name} (${columnDefs})`);
   }
 
-  add = (row: RowType<T>) => {
-    const columns = Object.keys(this.modal)
+  add = (row: T) => {
+    const columns: (keyof T)[] = Object.keys(row)
     const placeholders = columns.map(() => '?').join(', ')
-    const values = columns.map(col => {
-      const value = row[col as keyof typeof row]
-      if (this.modal[col] === 'HEX' && typeof value === 'string') return value.toString()
-      return value
-    })
+    const values = columns.map(col => row[col])
 
     const sql = `INSERT INTO ${this.name} (${columns.join(', ')}) VALUES (${placeholders})`
     return this.db.run(sql, values)
@@ -101,8 +102,9 @@ export class Table<T extends Modal> {
     // Process WHERE clause
     if (options?.where && Object.keys(options.where).length > 0) {
       const conditions = Object.entries(options.where)
-        .filter(([key]) => key in this.modal)
+        .filter(([key]) => key in this.definition)
         .map(([key, value]) => {
+          if (!value) return
           params.push(value);
           return `${key} = ?`;
         })
@@ -117,7 +119,7 @@ export class Table<T extends Modal> {
       
       if (orderByClauses.length > 0) {
         const orderByStatements = orderByClauses
-          .filter(order => order.column in this.modal)
+          .filter(order => order.column in this.definition)
           .map(order => `${String(order.column)} ${order.direction || 'ASC'}`)
           .join(', ');
           
@@ -130,18 +132,20 @@ export class Table<T extends Modal> {
       query += ` LIMIT ${options.limit}`;
     }
     
-    return this.db.query(query).as(Row<T>).all(...params);
+    const children = this.db.query(query).as(this.child).all(...params);
+    return children.map(child => new Row<T>(child))
   }
 
-  delete = (partialRow?: Partial<RowType<T>>): void => {
+  delete = (partialRow?: Partial<T>): void => {
     let query = `DELETE FROM ${this.name}`;
     
     const params: SQLQueryBindings[] = [];
 
     if (partialRow && Object.keys(partialRow).length > 0) {
       const conditions = Object.entries(partialRow)
-        .filter(([key]) => key in this.modal)
+        .filter(([key]) => key in this.definition)
         .map(([key, value]) => {
+          if (!value) return
           params.push(value);
           return `${key} = ?`;
         })
@@ -162,8 +166,9 @@ export class Table<T extends Modal> {
     // Process WHERE clause
     if (options?.where && Object.keys(options.where).length > 0) {
       const conditions = Object.entries(options.where)
-        .filter(([key]) => key in this.modal)
+        .filter(([key]) => key in this.definition)
         .map(([key, value]) => {
+          if (!value) return
           params.push(value);
           return `${key} = ?`;
         })
@@ -176,7 +181,7 @@ export class Table<T extends Modal> {
     return result && 'count' in result ? (result.count as number) : 0;
   }
 
-  update = (partialRow: Partial<RowType<T>>, whereClause: Partial<RowType<T>>) => {
+  update = (partialRow: Partial<T>, whereClause: Partial<T>) => {
     if (!partialRow || Object.keys(partialRow).length === 0) {
       throw new Error('Update requires at least one field to update');
     }
@@ -186,12 +191,12 @@ export class Table<T extends Modal> {
     }
     
     const updateFields = Object.entries(partialRow)
-      .filter(([key]) => key in this.modal)
+      .filter(([key]) => key in this.definition)
       .map(([key]) => `${key} = ?`)
       .join(', ');
       
     const whereFields = Object.entries(whereClause)
-      .filter(([key]) => key in this.modal)
+      .filter(([key]) => key in this.definition)
       .map(([key]) => `${key} = ?`)
       .join(' AND ');
     
@@ -202,14 +207,15 @@ export class Table<T extends Modal> {
     const query = `UPDATE ${this.name} SET ${updateFields} WHERE ${whereFields}`;
     
     const updateValues = Object.entries(partialRow)
-      .filter(([key]) => key in this.modal)
+      .filter(([key]) => key in this.definition)
       .map(([_, value]) => {
+        if(typeof value === 'undefined') return
         if (typeof value === 'string' && value.startsWith('0x')) return value.toString();
         return value;
       });
       
     const whereValues = Object.entries(whereClause)
-      .filter(([key]) => key in this.modal)
+      .filter(([key]) => key in this.definition)
       .map(([_, value]) => {
         if (typeof value === 'string' && value.startsWith('0x')) return value.toString();
         return value;
