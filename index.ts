@@ -8,6 +8,7 @@ export type ModalTypeMap = {
   'HEX': `0x${string}`;
   'INTEGER': number;
   'STRING': string;
+  'BOOLEAN': number
 }
 
 export type RowType<T extends Modal> = {
