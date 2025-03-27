@@ -33,14 +33,14 @@ interface UserModal {
   id: number,
   first_name: string,
   last_name: string,
-  favourite_colour: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
+  favourite_colour: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
 }
 
 const userDefinition: Definition<UserModal> = {
-  id: { type: 'INTEGER' },
+  id: { type: 'INTEGER', primaryKey: true },
   first_name: { type: 'TEXT' },
   last_name: { type: 'TEXT' },
-  favourite_colour: { type: 'TEXT' }
+  favourite_colour: { type: 'TEXT', nullable: true }
 }
 ```
 
@@ -52,7 +52,7 @@ class User implements UserModal {
   id!: number
   first_name!: string
   last_name!: string
-  favourite_colour!: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
+  favourite_colour!: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
   [key: string]: any
 
   constructor(modal: UserModal) {
@@ -126,21 +126,21 @@ interface UserModal {
   id: number,
   first_name: string,
   last_name: string,
-  favourite_colour: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
+  favourite_colour: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
 }
 
 const userDefinition: Definition<UserModal> = {
-  id: { type: 'INTEGER' },
+  id: { type: 'INTEGER', primaryKey: true },
   first_name: { type: 'TEXT' },
   last_name: { type: 'TEXT' },
-  favourite_colour: { type: 'TEXT' }
+  favourite_colour: { type: 'TEXT', nullable: true }
 }
 
 class User implements UserModal {
   id!: number
   first_name!: string
   last_name!: string
-  favourite_colour!: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
+  favourite_colour!: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
   [key: string]: any
 
   constructor(modal: UserModal) {
