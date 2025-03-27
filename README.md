@@ -59,7 +59,7 @@ class User implements UserModal {
     Object.assign(this, modal)
   }
 
-  // You can optionally add custom properties and method to this class.
+  // You can optionally add custom properties and methods to this class.
   getFullName() {
     return `${this.first_name} ${this.last_name}`
   }
