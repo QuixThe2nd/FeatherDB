@@ -13,9 +13,9 @@ export interface DefinitionOpt {
   primaryKey?: boolean
 }
 export type GetOptions<T> = {
-  where?: Where<T>;
-  limit?: number;
-  orderBy?: OrderBy<T>;
+  where?: Where<T> | undefined;
+  limit?: number | undefined;
+  orderBy?: OrderBy<T> | undefined;
 }
 
 export const eq = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: "=", value }}
@@ -94,7 +94,7 @@ export class Table<T extends object, R extends T> {
     const { builtQuery, values } = buildOpts({ where })
     const query = `SELECT COUNT(*) as count FROM ${this.name}${builtQuery}`
     
-    if ('create_function' in this.db) return this.db.prepare(query).getAsObject(values).count as number
+    if ('create_function' in this.db) return (this.db.prepare(query).getAsObject(values) as { count: number }).count
     else return (this.db.query(query).all(...values)[0] as { count: number }).count ?? 0
   }
   update = (partialRow: Partial<T>, opts?: GetOptions<T>): void => {
