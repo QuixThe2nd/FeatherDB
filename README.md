@@ -1,5 +1,5 @@
 # FeatherDB
-FeatherDB is a lightweight TypeScript ORM built for Bun. It is made to allow for custom advanced types in an SQLite database.
+FeatherDB is a lightweight TypeScript ORM built for Bun and the web. It is made to allow for custom advanced types in an SQLite database. [SQL.js](https://sql.js.org/#/) is used for web.
 
 ## 1. Installation
 
@@ -8,33 +8,39 @@ Run `bun add github:QuixThe2nd/FeatherDB`
 ## 2. SQLite
 
 Import and start a SQLite database:
+
+### Bun
 ```TS
 import { Database } from 'bun:sqlite'
 
 const db = new Database();
 ```
 
-## 3. Define Table Schema
-
-Define an interface for your table with types as strict as you like:
+### Web
 ```TS
-import { type Modal } from "FeatherDB";
+import initSqlJs from 'sql.js'
 
-interface UserModal extends Modal {
-  id: number,
-  name: `${string} ${string}`,
-  favourite_colour: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
-}
+const db = new (await initSqlJs({ locateFile: file => `https://sql.js.org/dist/${file}` })).Database()
 ```
 
-Then define your SQL schema:
+## 3. Define Table Schema
+
+Define an interface for your table with types as strict as you like as well as your SQL table schema
 ```TS
 import { type Definition } from "FeatherDB";
 
+interface UserModal {
+  id: number,
+  first_name: string,
+  last_name: string,
+  favourite_colour: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
+}
+
 const userDefinition: Definition<UserModal> = {
   id: { type: 'INTEGER' },
-  name: { type: 'TEXT' },
-  favourite_colour: { type: 'TEXT', nullable: true }
+  first_name: { type: 'TEXT' },
+  last_name: { type: 'TEXT' },
+  favourite_colour: { type: 'TEXT' }
 }
 ```
 
@@ -44,17 +50,21 @@ Create a class that will be used to represent fetched rows:
 ```TS
 class User implements UserModal {
   id!: number
-  name!: `${string} ${string}`
+  first_name!: string
+  last_name!: string
   favourite_colour!: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
   [key: string]: any
 
   constructor(modal: UserModal) {
     Object.assign(this, modal)
   }
+
+  // You can optionally add custom properties and method to this class.
+  getFullName() {
+    return `${this.first_name} ${this.last_name}`
+  }
 }
 ```
-
-You can optionally add custom properties and method to this class.
 
 ## 5. Create Table
 
@@ -62,7 +72,7 @@ Initialise a FeatherDB Table class and create the table:
 ```TS
 import { Table } from "FeatherDB";
 
-const users = new Table<UserModal>(db, 'user', userDefinition, User)
+const users = new Table<UserModal, User>(db, 'user', userDefinition, User)
 users.create()
 ```
 
@@ -71,7 +81,8 @@ users.create()
 ```TS
 users.add({
   id: 12,
-  name: 'John Smith',
+  first_name: 'John',
+  last_name: 'Smith',
   favourite_colour: 'blue'
 })
 ```
@@ -79,56 +90,92 @@ users.add({
 ## 7. Getting rows
 
 ```TS
-const user = users.get({ where: { name: 'John Smith' } })[0]
-console.log('ID: ', user?.get('id') ?? "User doesn't exist")
+const user = users.get({ where: { first_name: 'John', last_name: 'Smith' } })[0]
+console.log(`${user.getFullName()} - ${user.id}`)
 ```
 
-## 8. Deleting rows
+## 8. Counting rows
 
 ```TS
-users.delete({ name: 'John Smith' })
+const count = users.count({ { where: { first_name: 'John' } })
+console.log(`There are ${count} John's`)
+```
+
+## 9. Updating rows
+
+```TS
+users.update({ id }, { first_name: 'Tom' })
+```
+
+## 10. Deleting rows
+
+```TS
+users.delete({ id })
 ```
 
 ## Complete Example
 ```TS
+/**** BUN ****/
 import { Database } from 'bun:sqlite'
-import { Table, type Definition, type Modal } from "FeatherDB";
+/**** WEB ****/
+import initSqlJs from 'sql.js'
 
-interface UserModal extends Modal {
+import { Table, type Definition } from "FeatherDB";
+
+interface UserModal {
   id: number,
-  name: `${string} ${string}`,
+  first_name: string,
+  last_name: string,
   favourite_colour: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
 }
 
 const userDefinition: Definition<UserModal> = {
   id: { type: 'INTEGER' },
-  name: { type: 'TEXT' },
+  first_name: { type: 'TEXT' },
+  last_name: { type: 'TEXT' },
   favourite_colour: { type: 'TEXT' }
 }
 
 class User implements UserModal {
   id!: number
-  name!: `${string} ${string}`
+  first_name!: string
+  last_name!: string
   favourite_colour!: 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
   [key: string]: any
 
   constructor(modal: UserModal) {
     Object.assign(this, modal)
   }
+
+  getFullName() {
+    return `${this.first_name} ${this.last_name}`
+  }
 }
 
+/**** BUN ****/
 const db = new Database();
-const users = new Table<UserModal>(db, 'user', userDefinition, User)
+/**** WEB ****/
+const db = new (await initSqlJs({ locateFile: file => `https://sql.js.org/dist/${file}` })).Database()
+
+const users = new Table<UserModal, User>(db, 'user', userDefinition, User)
 users.create()
 
 users.add({
   id: 12,
-  name: 'John Smith',
+  first_name: 'John',
+  last_name: 'Smith',
   favourite_colour: 'blue'
 })
 
-const user = users.get({ where: { name: 'John Smith' } })[0]
-console.log('ID: ', user?.get('id') ?? "User doesn't exist")
+const user = users.get({ where: { first_name: 'John', last_name: 'Smith' } })[0]
+if (user) {
+  const id = user.id
+  console.log(`${user.getFullName()} - ${id}`)
 
-users.delete({ name: 'John Smith' })
+  const count = users.count({ where: { first_name: 'John' } })
+  console.log(`There are ${count} John's`)
+
+  users.update({ id }, { first_name: 'Tom' })
+  users.delete({ id })
+} else console.log('User not found')
 ```
