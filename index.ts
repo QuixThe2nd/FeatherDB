@@ -5,7 +5,7 @@ type SQLTypes = SqlValue & SQLQueryBindings
 export type ValidValuesOnly<T> = { [K in keyof T]: T[K] extends string | number | boolean | bigint ? T[K] : never }
 export type Definition<T> = { [key in keyof T]: DefinitionOpt }
 export type WhereObject<T> = { value: T, type: '=' | '>' | '<' | '>=' | '<=' | '!=' }
-export type Where<T> = { [key in keyof Partial<T>]: WhereObject<T[keyof T]> }
+export type Where<T> = { [key in keyof Partial<T>]: WhereObject<T[keyof T]> | undefined }
 export type OrderBy<T> = { [key in keyof Partial<T>]: 'ASC' | 'DESC'; }
 export interface DefinitionOpt {
   type: 'INTEGER' | 'TEXT' | 'BOOLEAN',
