@@ -55,7 +55,6 @@ class User implements UserModal {
   first_name!: string
   last_name!: string
   favourite_colour!: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
-  [key: string]: any
 
   constructor(modal: UserModal) {
     Object.assign(this, modal)
@@ -145,7 +144,6 @@ class User implements UserModal {
   first_name!: string
   last_name!: string
   favourite_colour!: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
-  [key: string]: any
 
   constructor(modal: UserModal) {
     Object.assign(this, modal)
