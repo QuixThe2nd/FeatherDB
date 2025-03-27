@@ -1,79 +1,39 @@
-import { Database, type SQLQueryBindings } from "bun:sqlite";
+import { Database as BunDatabase, type SQLQueryBindings } from "bun:sqlite";
+import type { Database as BrowserDatabase, SqlValue } from 'sql.js'
 
-// Modal 
-export type Modal = {
-  [key: string]: SQLQueryBindings
+type SQLTypes = SqlValue & SQLQueryBindings
+
+export type ValidValuesOnly<T> = {
+  [K in keyof T]: T[K] extends string | number | boolean | bigint ? T[K] : never;
 }
 
-export type Definition<T extends Modal> = {
-  [key in keyof T]: {
-    type: 'INTEGER' | 'TEXT' | 'BOOLEAN',
-    nullable?: boolean
-  }
+// DefinitionOpt 
+export type DefinitionOpt = {
+  type: 'INTEGER' | 'TEXT' | 'BOOLEAN',
+  nullable?: boolean
 }
 
-export type OrderBy<T extends Modal> = {
-  column: keyof T;
-  direction?: 'ASC' | 'DESC';
+export type Definition<T> = {
+  [key in keyof T]: DefinitionOpt
 }
 
-export type GetOptions<T extends Modal> = {
+export type OrderBy<T> = {
+  [key in keyof Partial<T>]: 'ASC' | 'DESC';
+}
+
+export type GetOptions<T> = {
   where?: Partial<T>;
   limit?: number;
-  orderBy?: OrderBy<T> | OrderBy<T>[];
+  orderBy?: OrderBy<T>;
 }
 
-export class Row<T extends Modal> {
-  private data: T
-
-  constructor(data: T) {
-    this.data = data
-  }
-
-  get values() {
-    return this.data
-  }
-
-  get<K extends keyof T>(key: K): T[K] {
-    return this.data[key];
-  }
-
-  static fromDb<T extends Modal>(data: Record<string, unknown>, modal: T): Row<T> {
-    const convertedData: Partial<T> = {};
-
-    for (const [key, value] of Object.entries(data)) {
-      if (key in modal) {
-        const modalKey = key as keyof T;
-        const modalType = modal[modalKey];
-        
-        if (modalType === 'HEX' && typeof value === 'string') convertedData[modalKey as keyof T] = (value.startsWith('0x') ? value : `0x${value}`) as T[keyof T];
-        else convertedData[modalKey as keyof T] = value as T[keyof T];
-      }
-    }
-
-    return new Row<T>(convertedData as T);
-  }
-
-  getRawData(): T {
-    const rawData: Partial<T> = {};
-    
-    for (const key in this) {
-      if (typeof this[key] !== 'function' && Object.prototype.hasOwnProperty.call(this, key)) {
-        rawData[key as keyof T] = (this as unknown as T)[key as keyof T];
-      }
-    }
-    
-    return rawData as T;
-  }
-}
-
-export class Table<T extends Modal> {
+export class Table<T extends object, R extends T> {
   name: string
   definition: Definition<T>
-  private db: Database
-  private child: new (args: T) => T
+  private db: BunDatabase | BrowserDatabase
+  private child: new (args: T) => T & R
 
-  constructor(db: Database, name: string, definition: Definition<T>, child: new (args: T) => T) {
+  constructor(db: BunDatabase | BrowserDatabase, name: string, definition: Definition<T>, child: new (args: T) => T & R) {
     this.name = name
     this.definition = definition
     this.db = db
@@ -81,72 +41,65 @@ export class Table<T extends Modal> {
   }
 
   create = () => {
-    const columnDefs = Object.entries(this.definition).map(([col, opts]) => `${col} ${opts.type} ${opts.nullable ? '' : 'NOT NULL'}`).join(', ');
+    const columnDefs = (Object.entries(this.definition) as [string, DefinitionOpt][]).map(([col, opts]) => `${col} ${opts.type} ${opts.nullable ? '' : 'NOT NULL'}`).join(', ');
+
     console.log(`CREATE TABLE IF NOT EXISTS ${this.name} (${columnDefs})`)
     this.db.run(`CREATE TABLE IF NOT EXISTS ${this.name} (${columnDefs})`);
   }
 
   add = (row: T) => {
-    const columns: (keyof T)[] = Object.keys(row)
-    const placeholders = columns.map(() => '?').join(', ')
-    const values = columns.map(col => row[col])
+    const columns: (keyof T)[] = Object.keys(row) as (keyof T)[]
+    const values: Array<T[keyof T]> = []
+    columns.map((col) => values.push(row[col]))
 
+    const placeholders = columns.map((_, i) => `?${i+1}`).join(', ')
     const sql = `INSERT INTO ${this.name} (${columns.join(', ')}) VALUES (${placeholders})`
-    return this.db.run(sql, values)
+    console.log(sql)
+    if ('create_function' in this.db) return this.db.prepare(sql).getAsObject(values as Array<T[keyof T] & SQLTypes>)
+    else return this.db.query(sql).all(...values as Array<T[keyof T] & SQLTypes>)
   }
 
-  get = (options?: GetOptions<T>): Row<T>[] => {
-    let query = `SELECT * FROM ${this.name}`;
-    const params: (string | number)[] = [];
+  get = (opts?: GetOptions<T>): R[] => {
+    const values: Array<T[keyof T] & SQLTypes> = []
 
-    // Process WHERE clause
-    if (options?.where && Object.keys(options.where).length > 0) {
-      const conditions = Object.entries(options.where)
-        .filter(([key]) => key in this.definition)
-        .map(([key, value]) => {
-          if (!value) return
-          params.push(value);
-          return `${key} = ?`;
-        })
-        .join(' AND ');
-        
-      if (conditions) query += ` WHERE ${conditions}`;
-    }
-    
-    // Process ORDER BY clause
-    if (options?.orderBy) {
-      const orderByClauses = Array.isArray(options.orderBy) ? options.orderBy : [options.orderBy];
-      
-      if (orderByClauses.length > 0) {
-        const orderByStatements = orderByClauses
-          .filter(order => order.column in this.definition)
-          .map(order => `${String(order.column)} ${order.direction || 'ASC'}`)
-          .join(', ');
-          
-        if (orderByStatements) query += ` ORDER BY ${orderByStatements}`;
+    const query = `SELECT * FROM ${this.name}` + 
+    (opts?.where ? " WHERE" + Object.entries(opts.where).map(([key, value], i) => {
+      const col: keyof T & string = key as keyof T & string
+      values.push(value as T[keyof T] & SQLTypes)
+      return ` ${col} = ?${i+1}` + (i < Object.keys(opts.where!).length-1 ? ' AND' : '')
+    }) : '') +
+    (opts?.orderBy ? ` ORDER BY ${Object.entries(opts.orderBy).map(item => `${item[0]}${item[1] ? ` ${item[1]}` : ''}`)}` : '') +
+    (opts?.limit ? ` LIMIT ${opts.limit}` : '')
+
+    const db = this.db
+    if ('create_function' in db) {
+      const bindings: { [key: `?${number}`]: T[keyof T] & SQLTypes } = {}
+      for (let i = 0; i < values.length; i++) {
+        bindings[`?${i+1}`] = values[i]!
       }
-    }
-    
-    // Process LIMIT clause
-    if (options?.limit !== undefined && options.limit > 0) {
-      query += ` LIMIT ${options.limit}`;
-    }
-    
-    const children = this.db.query(query).as(this.child).all(...params);
-    return children.map(child => new Row<T>(child))
+
+      const stmt = db.prepare(query)
+      stmt.bind(bindings)
+
+      const rows: R[] = []
+      while (stmt.step()) {
+        rows.push(new this.child(stmt.getAsObject() as T))
+      }
+      return rows
+    } else return db.query(query).as(this.child).all(...values) as R[]
   }
 
   delete = (partialRow?: Partial<T>): void => {
     let query = `DELETE FROM ${this.name}`;
     
-    const params: SQLQueryBindings[] = [];
+    const params: (T[keyof T] & SQLTypes)[] = [];
 
     if (partialRow && Object.keys(partialRow).length > 0) {
-      const conditions = Object.entries(partialRow)
+      const conditions = (Object.entries(partialRow) as [keyof T & string, T[keyof T]][])
         .filter(([key]) => key in this.definition)
         .map(([key, value]) => {
           if (!value) return
-          params.push(value);
+          params.push(value as T[keyof T] & SQLTypes);
           return `${key} = ?`;
         })
         .join(' AND ');
@@ -154,21 +107,20 @@ export class Table<T extends Modal> {
       if (conditions) query += ` WHERE ${conditions}`;
     }
     
-    const stmt = this.db.prepare(query)
-    stmt.run(...params);
+    if ('create_function' in this.db) this.db.run(query, params)
+    else this.db.prepare(query).run(...params);
   }
 
-  count = (options?: GetOptions<T>): number => {
+  count = (options?: GetOptions<T & ValidValuesOnly<T>>): number => {
     let query = `SELECT COUNT(*) as count FROM ${this.name}`;
     
-    const params: (string | number)[] = [];
+    const params: (T[keyof T] & SQLTypes)[] = [];
 
     // Process WHERE clause
     if (options?.where && Object.keys(options.where).length > 0) {
-      const conditions = Object.entries(options.where)
+      const conditions = (Object.entries(options.where) as [keyof T & string, T[keyof T] & SQLTypes][])
         .filter(([key]) => key in this.definition)
         .map(([key, value]) => {
-          if (!value) return
           params.push(value);
           return `${key} = ?`;
         })
@@ -177,18 +129,23 @@ export class Table<T extends Modal> {
       if (conditions) query += ` WHERE ${conditions}`;
     }
     
-    const result = this.db.query(query).get(...params) as object;
-    return result && 'count' in result ? (result.count as number) : 0;
+    if ('create_function' in this.db) {
+      const bindings: { [key: `?${number}`]: T[keyof T] & SQLTypes } = {}
+      for (let i = 0; i < params.length; i++) {
+        bindings[`?${i+1}`] = params[i]!
+      }
+
+      const stmt = this.db.prepare(query)
+      stmt.bind(bindings)
+
+    return this.db.prepare(query).getAsObject(bindings).count as number
+    } else return (this.db.query(query).all(...params)[0] as { count: number }).count ?? 0
   }
 
   update = (partialRow: Partial<T>, whereClause: Partial<T>) => {
-    if (!partialRow || Object.keys(partialRow).length === 0) {
-      throw new Error('Update requires at least one field to update');
-    }
+    if (!partialRow || Object.keys(partialRow).length === 0) throw new Error('Update requires at least one field to update');
     
-    if (!whereClause || Object.keys(whereClause).length === 0) {
-      throw new Error('Update requires a where clause to identify rows');
-    }
+    if (!whereClause || Object.keys(whereClause).length === 0) throw new Error('Update requires a where clause to identify rows');
     
     const updateFields = Object.entries(partialRow)
       .filter(([key]) => key in this.definition)
@@ -200,30 +157,21 @@ export class Table<T extends Modal> {
       .map(([key]) => `${key} = ?`)
       .join(' AND ');
     
-    if (!updateFields || !whereFields) {
-      throw new Error('Invalid update or where clause fields');
-    }
+    if (!updateFields || !whereFields) throw new Error('Invalid update or where clause fields');
     
     const query = `UPDATE ${this.name} SET ${updateFields} WHERE ${whereFields}`;
     
-    const updateValues = Object.entries(partialRow)
+    const updateValues: (T[keyof T] & SQLTypes)[] = (Object.entries(partialRow) as [keyof T, (T[keyof T] & SQLTypes)][])
       .filter(([key]) => key in this.definition)
-      .map(([_, value]) => {
-        if(typeof value === 'undefined') return
-        if (typeof value === 'string' && value.startsWith('0x')) return value.toString();
-        return value;
-      });
+      .map(([_, value]) => value);
       
-    const whereValues = Object.entries(whereClause)
+    const whereValues: (T[keyof T] & SQLTypes)[] = (Object.entries(whereClause) as [keyof T, (T[keyof T] & SQLTypes)][])
       .filter(([key]) => key in this.definition)
-      .map(([_, value]) => {
-        if (typeof value === 'string' && value.startsWith('0x')) return value.toString();
-        return value;
-      });
+      .map(([_, value]) => value);
     
-    const params = [...updateValues, ...whereValues];
+    const params: (T[keyof T] & SQLTypes)[] = [...updateValues, ...whereValues];
     
-    const stmt = this.db.prepare(query)
-    return stmt.run(...params);
+    if ('create_function' in this.db) this.db.run(query, params)
+    else this.db.prepare(query).run(...params);
   }
 }
