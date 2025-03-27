@@ -1,5 +1,5 @@
 import { Database as BunDatabase, type SQLQueryBindings } from "bun:sqlite";
-import type { Database as BrowserDatabase, SqlValue } from 'sql.js'
+import type { Database as BrowserDatabase, SqlValue } from 'sql.js';
 
 type SQLTypes = SqlValue & SQLQueryBindings
 export type ValidValuesOnly<T> = { [K in keyof T]: T[K] extends string | number | boolean | bigint ? T[K] : never }
@@ -18,12 +18,12 @@ export type GetOptions<T> = {
   orderBy?: OrderBy<T> | undefined;
 }
 
-export const eq = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: "=", value }}
-export const gt = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: ">", value }}
-export const lt = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: "<", value }}
-export const ge = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: ">=", value }}
-export const le = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: "<=", value }}
-export const ne = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: "!=", value }}
+export const eq = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: "=", value } }
+export const gt = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: ">", value } }
+export const lt = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: "<", value } }
+export const ge = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: ">=", value } }
+export const le = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: "<=", value } }
+export const ne = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: "!=", value } }
 
 const buildOpts = <T>(opts?: GetOptions<T>) => {
   const values: Array<T[keyof T] & SQLTypes> = []
@@ -32,12 +32,12 @@ const buildOpts = <T>(opts?: GetOptions<T>) => {
     const col = _key as keyof Where<T> & string
     const option = _opt as Where<T>[keyof T]
     values.push(option?.value! as T[keyof T] & SQLTypes)
-    return ` ${col} ${option?.type} ?${i+1}` + (i < Object.keys(opts.where!).length-1 ? ' AND' : '')
+    return ` ${col} ${option?.type} ?` + (i < Object.keys(opts.where!).length - 1 ? ' AND' : '')
   }) : '') +
-  (opts?.orderBy ? ` ORDER BY ${Object.entries(opts.orderBy).map(item => `${item[0]}${item[1] ? ` ${item[1]}` : ''}`)}` : '') +
-  (opts?.limit ? ` LIMIT ${opts.limit}` : '')
+    (opts?.orderBy ? ` ORDER BY ${Object.entries(opts.orderBy).map(item => `${item[0]}${item[1] ? ` ${item[1]}` : ''}`)}` : '') +
+    (opts?.limit ? ` LIMIT ${opts.limit}` : '')
 
-  return { builtQuery, values}
+  return { builtQuery, values }
 }
 
 export class Table<T extends object, R extends T> {
@@ -60,7 +60,7 @@ export class Table<T extends object, R extends T> {
   add = (row: T): void => {
     const columns: (keyof T)[] = Object.keys(row) as (keyof T)[]
     const values: Array<T[keyof T]> = columns.map((col) => row[col])
-    const placeholders = columns.map((_, i) => `?${i+1}`).join(', ')
+    const placeholders = columns.map((_, i) => `?${i + 1}`).join(', ')
 
     const query = `INSERT INTO ${this.name} (${columns.join(', ')}) VALUES (${placeholders})`
     console.log(query)
@@ -93,7 +93,7 @@ export class Table<T extends object, R extends T> {
   count = (where?: Where<T>): number => {
     const { builtQuery, values } = buildOpts({ where })
     const query = `SELECT COUNT(*) as count FROM ${this.name}${builtQuery}`
-    
+
     if ('create_function' in this.db) return (this.db.prepare(query).getAsObject(values) as { count: number }).count
     else return (this.db.query(query).all(...values)[0] as { count: number }).count ?? 0
   }
@@ -105,9 +105,9 @@ export class Table<T extends object, R extends T> {
     const query = `UPDATE ${this.name} SET ${updateFields} ${builtQuery}`
 
     const updateValues: (T[keyof T] & SQLTypes)[] = (Object.entries(partialRow) as [keyof T, (T[keyof T] & SQLTypes)][]).filter(([key]) => key in this.definition).map(([_, value]) => value)
-    const params: (T[keyof T] & SQLTypes)[] = [...values, ...updateValues];
-    
-    console.log(query)
+    const params: (T[keyof T] & SQLTypes)[] = [...updateValues, ...values];
+
+    console.log(query, params)
     if ('create_function' in this.db) this.db.run(query, params)
     else this.db.prepare(query).run(...params);
   }
