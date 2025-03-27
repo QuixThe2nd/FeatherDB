@@ -60,7 +60,7 @@ export class Table<T extends object, R extends T> {
   add = (row: T): void => {
     const columns: (keyof T)[] = Object.keys(row) as (keyof T)[]
     const values: Array<T[keyof T]> = columns.map((col) => row[col])
-    const placeholders = columns.map((_, i) => `?${i + 1}`).join(', ')
+    const placeholders = columns.map(_ => '?').join(', ')
 
     const query = `INSERT INTO ${this.name} (${columns.join(', ')}) VALUES (${placeholders})`
     console.log(query)
