@@ -92,6 +92,8 @@ users.add({
 ### 7. Getting rows
 
 ```TS
+import { eq } from "FeatherDB";
+
 const user = users.get({ where: { first_name: eq('John'), last_name: eq('Smith') } })[0]
 console.log(`${user.getFullName()} - ${user.id}`)
 ```
@@ -122,7 +124,7 @@ import { Database } from 'bun:sqlite'
 /**** WEB ****/
 import initSqlJs from 'sql.js'
 
-import { Table, type Definition } from "FeatherDB";
+import { Table, eq, type Definition } from "FeatherDB";
 
 interface UserModal {
   id: number,
@@ -189,6 +191,9 @@ Operators are defined like so:
 ```
 
 ### Available Operators
+```TS
+import { eq, ne, gt, lt, ge, le } from "FeatherDB";
+```
 - `=`: `eq()`
 - `!=`: `ne()`
 - `>`: `gt()`
