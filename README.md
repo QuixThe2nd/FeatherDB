@@ -185,7 +185,7 @@ if (user) {
 ## Operators
 Operators are defined like so:
 ```TS
-{ where: { first_name: eq('John') } }
+{ where: [{ column: 'first_name', opt: eq('John') }] }
 ```
 
 ### Available Operators
