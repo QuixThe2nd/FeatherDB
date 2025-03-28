@@ -93,27 +93,27 @@ users.add({
 ```TS
 import { eq } from "FeatherDB";
 
-const user = users.get({ where: { first_name: eq('John'), last_name: eq('Smith') } })[0]
+const user = users.get({ where: [{ column: 'first_name', opt: eq('John') }, { column: 'last_name', opt: eq('Smith') }], limit: 1 })[0]
 console.log(`${user.getFullName()} - ${user.id}`)
 ```
 
 ### 8. Counting rows
 
 ```TS
-const count = users.count({ first_name: eq('John') })
+const count = users.count([{ column: 'first_name', opt: eq('John') }])
 console.log(`There are ${count} John's`)
 ```
 
 ### 9. Updating rows
 
 ```TS
-users.update({ first_name: 'Tom' }, { where: { id: eq(id) } })
+users.update({ first_name: 'Tom' }, { where: [{ column: 'id', opt: eq(id) }] })
 ```
 
 ### 10. Deleting rows
 
 ```TS
-users.delete({ where: { id: eq(id) } })
+users.delete({ where: [{ column: 'id', opt: eq(id) }] })
 ```
 
 ### Complete Example
@@ -169,16 +169,16 @@ users.add({
   favourite_colour: 'blue'
 })
 
-const user = users.get({ where: { first_name: eq('John'), last_name: eq('Smith') }, limit: 1 })[0]
+const user = users.get({ where: [{ column: 'first_name', opt: eq('John') }, { column: 'last_name', opt: eq('Smith') }], limit: 1 })[0]
 if (user) {
   const id = user.id
   console.log(`${user.getFullName()} - ${id}`)
 
-  const count = users.count({ first_name: eq('John') })
+  const count = users.count([{ column: 'first_name', opt: eq('John') }])
   console.log(`There are ${count} John's`)
 
-  users.update({ first_name: 'Tom' }, { where: { id: eq(id) } })
-  users.delete({ where: { id: eq(id) } })
+  users.update({ first_name: 'Tom' }, { where: [{ column: 'id', opt: eq(id) }] })
+  users.delete({ where: [{ column: 'id', opt: eq(id) }] })
 } else console.log('User not found')
 ```
 
