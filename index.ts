@@ -4,8 +4,8 @@ import type { Database as BrowserDatabase, SqlValue } from 'sql.js';
 type SQLTypes = SqlValue & SQLQueryBindings
 export type ValidValuesOnly<T> = { [K in keyof T]: T[K] extends string | number | boolean | bigint ? T[K] : never }
 export type Definition<T> = { [key in keyof T]: DefinitionOpt }
-export type WhereObject<T> = { value: T, type: '=' | '>' | '<' | '>=' | '<=' | '!=' }
-export type Where<T> = { column: keyof Partial<T> & string, opt: WhereObject<T[keyof T]> }
+export type WhereObject<T> = { value: T[] | T, type: '=' | '>' | '<' | '>=' | '<=' | '!=' }
+export type Where<T> = { column: keyof Partial<T> & string, opt: WhereObject<T[keyof T]> | undefined }
 export type OrderBy<T> = { [key in keyof Partial<T>]: 'ASC' | 'DESC'; }
 export interface DefinitionOpt {
   type: 'INTEGER' | 'TEXT' | 'BOOLEAN',
@@ -29,9 +29,19 @@ const buildOpts = <T>(opts?: GetOptions<T>) => {
   const values: Array<T[keyof T] & SQLTypes> = []
 
   const builtQuery = (opts?.where ? " WHERE" + opts.where.map((option, i) => {
-    values.push(option.opt.value as T[keyof T] & SQLTypes)
-    return ` ${option.column} ${option.opt.type} ?` + (i < Object.keys(opts.where!).length - 1 ? ' AND' : '')
-  }) : '') +
+    if (!option.opt) return
+
+    const where = option.opt.value
+    if (Array.isArray(where)) {
+      return ` (${where.map(item => {
+        values.push(item as T[keyof T] & string)
+        return `${option.column} ${option.opt?.type} ?`
+      }).join(' OR ')})`
+    } else {
+      values.push(where as T[keyof T] & string)
+      return ` ${option.column} ${option.opt.type} ?` + (i < Object.keys(opts.where!).length - 1 ? ' AND' : '')
+    }
+  }).join('') : '') +
     (opts?.orderBy ? ` ORDER BY ${Object.entries(opts.orderBy).map(item => `${item[0]}${item[1] ? ` ${item[1]}` : ''}`)}` : '') +
     (opts?.limit ? ` LIMIT ${opts.limit}` : '')
 
@@ -63,13 +73,13 @@ export class Table<T extends object, R extends T> {
     const query = `INSERT INTO ${this.name} (${columns.join(', ')}) VALUES (${placeholders})`
     console.log(query)
     if ('create_function' in this.db) this.db.prepare(query).getAsObject(values as Array<T[keyof T] & SQLTypes>)
-    else this.db.query(query).all(...values as Array<T[keyof T] & SQLTypes>)
+    else this.db.query(query).run(...values as Array<T[keyof T] & SQLTypes>)
   }
   get = (opts?: GetOptions<T>): R[] => {
     const { builtQuery, values } = buildOpts(opts)
     const query = `SELECT * FROM ${this.name}${builtQuery}`
 
-    // console.log(query)
+    console.log(query)
     if ('create_function' in this.db) {
       const stmt = this.db.prepare(query)
       stmt.bind(values)
@@ -105,7 +115,7 @@ export class Table<T extends object, R extends T> {
     const updateValues: (T[keyof T] & SQLTypes)[] = (Object.entries(partialRow) as [keyof T, (T[keyof T] & SQLTypes)][]).filter(([key]) => key in this.definition).map(([_, value]) => value)
     const params: (T[keyof T] & SQLTypes)[] = [...updateValues, ...values];
 
-    console.log(query, params)
+    console.log(query)
     if ('create_function' in this.db) this.db.run(query, params)
     else this.db.prepare(query).run(...params);
   }
