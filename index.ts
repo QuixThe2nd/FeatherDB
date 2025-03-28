@@ -5,7 +5,7 @@ type SQLTypes = SqlValue & SQLQueryBindings
 export type ValidValuesOnly<T> = { [K in keyof T]: T[K] extends string | number | boolean | bigint ? T[K] : never }
 export type Definition<T> = { [key in keyof T]: DefinitionOpt }
 export type WhereObject<T> = { value: T, type: '=' | '>' | '<' | '>=' | '<=' | '!=' }
-export type Where<T> = { [key in keyof Partial<T>]: WhereObject<T[keyof T]> | undefined }
+export type Where<T> = { column: keyof Partial<T> & string, opt: WhereObject<T[keyof T]> }
 export type OrderBy<T> = { [key in keyof Partial<T>]: 'ASC' | 'DESC'; }
 export interface DefinitionOpt {
   type: 'INTEGER' | 'TEXT' | 'BOOLEAN',
@@ -13,7 +13,7 @@ export interface DefinitionOpt {
   primaryKey?: boolean
 }
 export type GetOptions<T> = {
-  where?: Where<T> | undefined;
+  where?: Where<T>[] | undefined;
   limit?: number | undefined;
   orderBy?: OrderBy<T> | undefined;
 }
@@ -28,11 +28,9 @@ export const ne = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: "
 const buildOpts = <T>(opts?: GetOptions<T>) => {
   const values: Array<T[keyof T] & SQLTypes> = []
 
-  const builtQuery = (opts?.where ? " WHERE" + Object.entries(opts.where).map(([_key, _opt], i) => {
-    const col = _key as keyof Where<T> & string
-    const option = _opt as Where<T>[keyof T]
-    values.push(option?.value! as T[keyof T] & SQLTypes)
-    return ` ${col} ${option?.type} ?` + (i < Object.keys(opts.where!).length - 1 ? ' AND' : '')
+  const builtQuery = (opts?.where ? " WHERE" + opts.where.map((option, i) => {
+    values.push(option.opt.value as T[keyof T] & SQLTypes)
+    return ` ${option.column} ${option.opt.type} ?` + (i < Object.keys(opts.where!).length - 1 ? ' AND' : '')
   }) : '') +
     (opts?.orderBy ? ` ORDER BY ${Object.entries(opts.orderBy).map(item => `${item[0]}${item[1] ? ` ${item[1]}` : ''}`)}` : '') +
     (opts?.limit ? ` LIMIT ${opts.limit}` : '')
@@ -90,7 +88,7 @@ export class Table<T extends object, R extends T> {
     if ('create_function' in this.db) this.db.run(query, values)
     else this.db.prepare(query).run(...values);
   }
-  count = (where?: Where<T>): number => {
+  count = (where?: Where<T>[]): number => {
     const { builtQuery, values } = buildOpts({ where })
     const query = `SELECT COUNT(*) as count FROM ${this.name}${builtQuery}`
 
