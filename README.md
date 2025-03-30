@@ -27,22 +27,13 @@ const db = new (await initSqlJs({ locateFile: file => `https://sql.js.org/dist/$
 
 ### 3. Define Table Schema
 
-Define an interface for your table with types as strict as you like as well as your SQL table schema
+Define an interface for your table with types as strict as you like:
 ```TS
-import { type Definition } from "FeatherDB";
-
 interface UserModal {
   id: number,
   first_name: string,
   last_name: string,
-  favourite_colour: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
-}
-
-const userDefinition: Definition<UserModal> = {
-  id: { type: 'INTEGER', primaryKey: true },
-  first_name: { type: 'TEXT' },
-  last_name: { type: 'TEXT' },
-  favourite_colour: { type: 'TEXT', nullable: true }
+  favorite_color: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
 }
 ```
 
@@ -54,7 +45,7 @@ class User implements UserModal {
   id!: number
   first_name!: string
   last_name!: string
-  favourite_colour!: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
+  favorite_color!: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
 
   constructor(modal: UserModal) {
     Object.assign(this, modal)
@@ -73,7 +64,16 @@ Initialise a FeatherDB Table class and create the table:
 ```TS
 import { Table } from "FeatherDB";
 
-const users = new Table<UserModal, User>(db, 'user', userDefinition, User)
+const users = new Table<UserModal, User>(db, {
+  name: 'user',
+  definition: {
+    id: { type: 'INTEGER', primaryKey: true },
+    first_name: { type: 'TEXT' },
+    last_name: { type: 'TEXT' },
+    favorite_color: { type: 'TEXT', nullable: true }
+  },
+  child: User
+})
 users.create()
 ```
 
@@ -84,7 +84,7 @@ users.add({
   id: 12,
   first_name: 'John',
   last_name: 'Smith',
-  favourite_colour: 'blue'
+  favorite_color: 'blue'
 })
 ```
 
@@ -118,32 +118,25 @@ users.delete({ where: [{ column: 'id', opt: eq(id) }] })
 
 ### Complete Example
 ```TS
-/**** BUN ****/
+// BUN:
 import { Database } from 'bun:sqlite'
-/**** WEB ****/
-import initSqlJs from 'sql.js'
+// WEB:
+// import initSqlJs from 'sql.js'
 
-import { Table, eq, type Definition } from "FeatherDB";
+import { Table, eq } from "FeatherDB";
 
 interface UserModal {
   id: number,
   first_name: string,
   last_name: string,
-  favourite_colour: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
-}
-
-const userDefinition: Definition<UserModal> = {
-  id: { type: 'INTEGER', primaryKey: true },
-  first_name: { type: 'TEXT' },
-  last_name: { type: 'TEXT' },
-  favourite_colour: { type: 'TEXT', nullable: true }
+  favorite_color: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
 }
 
 class User implements UserModal {
   id!: number
   first_name!: string
   last_name!: string
-  favourite_colour!: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
+  favorite_color!: null | 'red' | 'blue' | 'yellow' | 'green' | 'orange' | 'purple'
 
   constructor(modal: UserModal) {
     Object.assign(this, modal)
@@ -154,19 +147,28 @@ class User implements UserModal {
   }
 }
 
-/**** BUN ****/
+// BUN:
 const db = new Database();
-/**** WEB ****/
-const db = new (await initSqlJs({ locateFile: file => `https://sql.js.org/dist/${file}` })).Database()
+// WEB:
+// const db = new (await initSqlJs({ locateFile: file => `https://sql.js.org/dist/${file}` })).Database()
 
-const users = new Table<UserModal, User>(db, 'user', userDefinition, User)
+const users = new Table<UserModal, User>(db, {
+  name: 'user',
+  definition: {
+    id: { type: 'INTEGER', primaryKey: true },
+    first_name: { type: 'TEXT' },
+    last_name: { type: 'TEXT' },
+    favorite_color: { type: 'TEXT', nullable: true }
+  },
+  child: User
+})
 users.create()
 
 users.add({
   id: 12,
   first_name: 'John',
   last_name: 'Smith',
-  favourite_colour: 'blue'
+  favorite_color: 'blue'
 })
 
 const user = users.get({ where: [{ column: 'first_name', opt: eq('John') }, { column: 'last_name', opt: eq('Smith') }], limit: 1 })[0]
