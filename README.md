@@ -58,20 +58,25 @@ class User implements UserModal {
 }
 ```
 
+### 5. Create Definition
+```TS
+const usersDefinition = {
+  id: { type: 'INTEGER', primaryKey: true },
+  first_name: { type: 'TEXT' },
+  last_name: { type: 'TEXT' },
+  favorite_color: { type: 'TEXT', nullable: true }
+} as const
+```
+
 ### 5. Create Table
 
 Initialise a FeatherDB Table class and create the table:
 ```TS
 import { Table } from "FeatherDB";
 
-const users = new Table<UserModal, User>(db, {
+const users = new Table<UserModal, User, typeof usersDefinition>(db, {
   name: 'user',
-  definition: {
-    id: { type: 'INTEGER', primaryKey: true },
-    first_name: { type: 'TEXT' },
-    last_name: { type: 'TEXT' },
-    favorite_color: { type: 'TEXT', nullable: true }
-  },
+  definition: usersDefinition,
   child: User
 })
 users.create()
