@@ -14,6 +14,8 @@ export type WhereObject<T> = { value: T[] | T, type: '=' | '>' | '<' | '>=' | '<
 export type Where<T> = { column: keyof Partial<T> & string, opt: WhereObject<T[keyof T]> | undefined }
 export type OrderBy<T> = { [key in keyof Partial<T>]: 'ASC' | 'DESC'; }
 export type GetOptions<T> = { where?: Where<T>[] | undefined; limit?: number | undefined; orderBy?: OrderBy<T> | undefined }
+export type AIColumn<T extends object, D extends Definition<T>> = { [K in keyof D]: D[K]['autoIncrement'] extends true ? K : never }[keyof D];
+export type PrimaryColumn<T extends object, D extends Definition<T>> = { [K in keyof D]: D[K]['primaryKey'] extends true ? K : undefined }[keyof D];
 
 export const eq = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: "=", value } }
 export const gt = <T>(value: T & SQLTypes): WhereObject<T> => { return { type: ">", value } }
@@ -45,18 +47,19 @@ const buildOpts = <T>(opts?: GetOptions<T>) => {
   return { builtQuery, values }
 }
 
-export interface TableSchema<T, RowClass> {
-  readonly name: string
-  readonly definition: Definition<T>
-  readonly child: new (args: T) => RowClass
+export interface TableSchema<T extends object, RowClass, D extends Definition<T>> {
+  readonly name: string;
+  readonly definition: D;
+  readonly child: new (args: T) => RowClass;
 }
 
-export class Table<T extends object, RowClass> {
-  private db: BunDatabase | BrowserDatabase
-  private schema: TableSchema<T, RowClass>
-  constructor(db: BunDatabase | BrowserDatabase, schema: TableSchema<T, RowClass>) {
-    this.db = db
-    this.schema = schema
+export class Table<T extends object, RowClass, D extends Definition<T>> {
+  private db: BunDatabase | BrowserDatabase;
+  private schema: TableSchema<T, RowClass, D>;
+
+  constructor(db: BunDatabase | BrowserDatabase, schema: TableSchema<T, RowClass, D>) {
+    this.db = db;
+    this.schema = schema;
   }
   create = (): void => {
     const columnDefs = (Object.entries(this.schema.definition) as [string, DefinitionOpt][]).map(([col, opts]) => {
@@ -76,15 +79,20 @@ export class Table<T extends object, RowClass> {
     console.log(query)
     this.db.run(query);
   }
-  add = (row: T): void => {
-    const columns: (keyof T)[] = Object.keys(row) as (keyof T)[]
-    const values: Array<T[keyof T]> = columns.map((col) => row[col])
+  add<R extends T | Omit<T, AIColumn<T, D>>>(row: R): RowClass {
+    const columns = Object.keys(row) as (keyof R)[];
+    const values: Array<R[keyof R]> = columns.map((col) => row[col]);
     const placeholders = columns.map(_ => '?').join(', ')
 
     const query = `INSERT INTO ${this.schema.name} (${columns.join(', ')}) VALUES (${placeholders})`
     console.log(query)
-    if ('create_function' in this.db) this.db.prepare(query).getAsObject(values as Array<T[keyof T] & SQLTypes>)
-    else this.db.query(query).run(...values as Array<T[keyof T] & SQLTypes>)
+    const primaryKeyCol = Object.entries(this.schema.definition).find(([_, _def]) => {
+      const def = _def as DefinitionOpt;
+      return def.primaryKey && def.autoIncrement && def.type === 'INTEGER'
+    })?.[0];
+    
+    if ('create_function' in this.db) return new this.schema.child(this.db.prepare(query).getAsObject(values as Array<T[keyof T] & SQLTypes>) as T);
+    else return new this.schema.child(this.db.query(query).run(...values as Array<T[keyof T] & SQLTypes>) as T);
   }
   get = (opts?: GetOptions<T>): RowClass[] => {
     const { builtQuery, values } = buildOpts(opts)
