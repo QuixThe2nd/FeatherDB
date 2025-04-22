@@ -87,14 +87,13 @@ export class Table<T extends object, RowClass, D extends Definition<T>> {
 
     const query = `INSERT INTO ${this.schema.name} (${columns.join(', ')}) VALUES (${placeholders})`
     console.log(query)
-    const primaryKeyCol = Object.entries(this.schema.definition).find(([_, _def]) => {
-      const def = _def as DefinitionOpt;
-      return def.primaryKey && def.autoIncrement && def.type === 'INTEGER'
-    })?.[0];
-    
-
+    const primaryKeyCol = Object.entries(this.schema.definition).find(([_, def]) => (def as DefinitionOpt).primaryKey)?.[0] as keyof T;
     if ('create_function' in this.db) return new this.schema.child(this.db.prepare(query).getAsObject(values as Array<T[keyof T] & SQLTypes>) as T);
-    else return this.get({ where: [{ column: primaryKeyCol as keyof T & string, opt: eq(this.db.query(query).run(...values as Array<T[keyof T] & SQLTypes>).lastInsertRowid as T[keyof T] & number) }] })[0]
+    else {
+      const lastInsertRowid = this.db.query(query).run(...values as Array<T[keyof T] & SQLTypes>).lastInsertRowid
+      if (this.schema.definition[primaryKeyCol].type === 'INTEGER') return this.get({ where: [{ column: primaryKeyCol as keyof T & string, opt: eq(lastInsertRowid as T[keyof T] & number) }] })[0]
+      else return this.get({ where: [{ column: primaryKeyCol as keyof T & string, opt: eq(row[primaryKeyCol as keyof R] as T[keyof T] & null) }] })[0]
+    }
   }
   get = (opts?: GetOptions<T>): RowClass[] => {
     const { builtQuery, values } = buildOpts(opts)
