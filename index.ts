@@ -3,7 +3,12 @@ import { type Database as BrowserDatabase, type SqlValue } from 'sql.js';
 
 type SQLTypes = SqlValue & SQLQueryBindings
 export type ValidValuesOnly<T> = { [K in keyof T]: T[K] extends string | number | boolean | bigint ? T[K] : never }
-export interface DefinitionOpt { type: 'INTEGER' | 'TEXT' | 'BOOLEAN', nullable?: boolean, primaryKey?: boolean }
+export interface DefinitionOpt { 
+  type: 'INTEGER' | 'TEXT' | 'BOOLEAN', 
+  nullable?: boolean, 
+  primaryKey?: boolean,
+  autoIncrement?: boolean 
+}
 export type Definition<T> = { [key in keyof T]: DefinitionOpt }
 export type WhereObject<T> = { value: T[] | T, type: '=' | '>' | '<' | '>=' | '<=' | '!=' }
 export type Where<T> = { column: keyof Partial<T> & string, opt: WhereObject<T[keyof T]> | undefined }
@@ -54,7 +59,19 @@ export class Table<T extends object, RowClass> {
     this.schema = schema
   }
   create = (): void => {
-    const columnDefs = (Object.entries(this.schema.definition) as [string, DefinitionOpt][]).map(([col, opts]) => `${col} ${opts.type}${opts.primaryKey ? ' PRIMARY KEY' : ''}${!opts.nullable && !opts.primaryKey ? ' NOT NULL' : ''}`).join(', ');
+    const columnDefs = (Object.entries(this.schema.definition) as [string, DefinitionOpt][]).map(([col, opts]) => {
+      let columnDef = `${col} ${opts.type}`;
+
+      if (opts.primaryKey) {
+        columnDef += ' PRIMARY KEY';
+        if (opts.autoIncrement && opts.type === 'INTEGER') columnDef += ' AUTOINCREMENT';
+      }
+
+      if (!opts.nullable && !opts.primaryKey) columnDef += ' NOT NULL';
+      
+      return columnDef;
+    }).join(', ');
+
     const query = `CREATE TABLE IF NOT EXISTS \`${this.schema.name}\` (${columnDefs})`
     console.log(query)
     this.db.run(query);
