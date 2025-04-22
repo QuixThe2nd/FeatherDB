@@ -91,8 +91,9 @@ export class Table<T extends object, RowClass, D extends Definition<T>> {
       return def.primaryKey && def.autoIncrement && def.type === 'INTEGER'
     })?.[0];
     
+
     if ('create_function' in this.db) return new this.schema.child(this.db.prepare(query).getAsObject(values as Array<T[keyof T] & SQLTypes>) as T);
-    else return new this.schema.child(this.db.query(query).run(...values as Array<T[keyof T] & SQLTypes>) as T);
+    else return this.get({ where: [{ column: primaryKeyCol as keyof T & string, opt: eq(this.db.query(query).run(...values as Array<T[keyof T] & SQLTypes>).lastInsertRowid as T[keyof T] & number) }] })[0]
   }
   get = (opts?: GetOptions<T>): RowClass[] => {
     const { builtQuery, values } = buildOpts(opts)
