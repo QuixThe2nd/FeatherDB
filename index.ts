@@ -61,7 +61,7 @@ export class Table<T extends object, RowClass, D extends Definition<T>> {
     this.db = db;
     this.schema = schema;
   }
-  create = (): void => {
+  create = (): this => {
     const columnDefs = (Object.entries(this.schema.definition) as [string, DefinitionOpt][]).map(([col, opts]) => {
       let columnDef = `${col} ${opts.type}`;
 
@@ -78,6 +78,7 @@ export class Table<T extends object, RowClass, D extends Definition<T>> {
     const query = `CREATE TABLE IF NOT EXISTS \`${this.schema.name}\` (${columnDefs})`
     console.log(query)
     this.db.run(query);
+    return this
   }
   add<R extends T | Omit<T, AIColumn<T, D>>>(row: R): RowClass {
     const columns = Object.keys(row) as (keyof R)[];
