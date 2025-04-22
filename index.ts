@@ -4,7 +4,7 @@ import { type Database as BrowserDatabase, type SqlValue } from 'sql.js';
 type SQLTypes = SqlValue & SQLQueryBindings
 export type ValidValuesOnly<T> = { [K in keyof T]: T[K] extends string | number | boolean | bigint ? T[K] : never }
 export interface DefinitionOpt { 
-  type: 'INTEGER' | 'TEXT' | 'BOOLEAN', 
+  type: 'INTEGER' | 'REAL' | 'TEXT' | 'BOOLEAN', 
   nullable?: boolean, 
   primaryKey?: boolean,
   autoIncrement?: boolean 
